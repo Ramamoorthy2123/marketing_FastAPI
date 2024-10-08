@@ -1,3 +1,4 @@
+import certifi
 from fastapi import FastAPI, APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # MongoDB configuration
-client = MongoClient('mongodb+srv://nani:Nani@cluster0.p71g0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
+client = MongoClient('mongodb+srv://nani:Nani@cluster0.p71g0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', tls=True, tlsCAFile=certifi.where())
 db = client["Marketing_DB"]
 collection = db["Record"]
 
@@ -24,6 +25,9 @@ collection = db["Record"]
 class RecordResponse(BaseModel):
     serial_number: int
     user_name: str
+    address:str
+    website_url:str
+    contact_person:str
     company_name: str
     status: str
     purpose: str
@@ -51,27 +55,24 @@ ensure_directories_exist()
 @router.get("/records/", response_model=List[RecordResponse])
 async def get_records():
     try:
-        records = list(collection.find().sort("upload_time", -1))  # Sort by upload_time or any other field
+        records = list(collection.find().sort("upload_time", 1))  # Sort by upload_time in ascending order
         response_data = []
 
-        for index, record in enumerate(records):
-            # Convert _id to serial_number (start at 1)
-            serial_number = index + 1
-            
+        for record in records:
             # Build URLs for images and visiting cards
             image_url = f"/static/images/{record.get('image_path', '').split('/')[-1]}" if record.get('image_path') else ""
             visiting_card_url = f"/static/visiting_cards/{record.get('visiting_card_path', '').split('/')[-1]}" if record.get('visiting_card_path') else ""
             
             record_data = {
-                "serial_number": serial_number,
+                "serial_number": record["serial_number"],  # Use the serial_number from the record
                 "user_name": record.get('user_name', ''),
                 "company_name": record.get('company_name', ''),
                 "status": record.get('status', ''),
                 "purpose": record.get('purpose', ''),
-                "date_created": record.get('upload_time', datetime.utcnow().isoformat()),  # Use upload_time or a default
+                "date_created": record.get('upload_time', datetime.utcnow().isoformat()),
                 "image_url": image_url,
                 "visiting_card_url": visiting_card_url,
-                "location": record.get('location', '')  # Include location field
+                "location": record.get('location', '')
             }
             response_data.append(record_data)
         
@@ -94,12 +95,16 @@ async def get_record(serial_number: int):
                 "serial_number": record["serial_number"],
                 "user_name": record["user_name"],
                 "company_name": record["company_name"],
+                "address": record["address"],  # Ensure this field is included
+                "contact_person": record["contact_person"],  # Ensure this field is included
+                "website_url": record["website_url"],  # Ensure this field is included
                 "status": record["status"],
                 "purpose": record["purpose"],
-                "date_created": record["upload_time"],
+                "upload_time": record["upload_time"],  # Assuming this field exists
+                "date_created": record.get('upload_time', datetime.utcnow().isoformat()),
+                "location": record["location"],
                 "image_url": image_url,
                 "visiting_card_url": visiting_card_url,
-                "location": record.get("location", ""),
             }
         else:
             logger.warning(f"Record not found for serial_number: {serial_number}")
