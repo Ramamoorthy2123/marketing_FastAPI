@@ -6,3 +6,4 @@ email-validator
 bcrypt
 python-multipart
 python-dotenv
+certifi
