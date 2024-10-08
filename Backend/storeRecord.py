@@ -5,7 +5,6 @@ from pymongo import MongoClient
 from fastapi import APIRouter
 import os
 import shutil
-import uuid
 
 app = FastAPI()
 router = APIRouter()
@@ -44,7 +43,7 @@ async def submit_form(
 ):
     # Determine the next serial number
     last_record = collection.find_one(sort=[("serial_number", -1)])  # Get the highest serial number
-    serial_number = last_record["serial_number"] + 1 if last_record else 1  # Start from 1
+    serial_number = (last_record["serial_number"] + 1) if last_record and "serial_number" in last_record else 1
 
     # Prepare the form data
     form_data = {
@@ -58,7 +57,6 @@ async def submit_form(
         "upload_time": upload_time,
         "location": location,
         "serial_number": serial_number,
-        
     }
 
     # Save the image file
@@ -83,5 +81,3 @@ async def submit_form(
     result = collection.insert_one(form_data)
    
     return {"status": "success", "data_id": str(result.inserted_id), "serial_number": serial_number}
-
-
